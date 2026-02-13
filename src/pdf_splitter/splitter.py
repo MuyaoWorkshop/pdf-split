@@ -48,9 +48,14 @@ class PDFSplitter:
             for page_num in range(start_page, end_page):
                 new_doc.insert_pdf(self.doc, from_page=page_num, to_page=page_num)
 
-            # 保存文件
+            # 保存文件（使用优化选项减小文件大小）
             output_path = os.path.join(output_dir, f"{self.filename}_part{i+1}.pdf")
-            new_doc.save(output_path)
+            new_doc.save(
+                output_path,
+                garbage=4,      # 最彻底的垃圾收集
+                deflate=True,    # 压缩流对象
+                clean=True,      # 清理未使用的对象
+            )
             new_doc.close()
             output_files.append(output_path)
 
@@ -83,9 +88,14 @@ class PDFSplitter:
             for page_num in range(start_page, end_page):
                 new_doc.insert_pdf(self.doc, from_page=page_num, to_page=page_num)
 
-            # 保存文件
+            # 保存文件（使用优化选项减小文件大小）
             output_path = os.path.join(output_dir, f"{self.filename}_range_{start}-{end}.pdf")
-            new_doc.save(output_path)
+            new_doc.save(
+                output_path,
+                garbage=4,
+                deflate=True,
+                clean=True,
+            )
             new_doc.close()
             output_files.append(output_path)
 
@@ -136,9 +146,14 @@ class PDFSplitter:
                 safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
                 safe_title = safe_title[:50] if safe_title else f"section_{i+1}"
 
-                # 保存文件
+                # 保存文件（使用优化选项减小文件大小）
                 output_path = os.path.join(output_dir, f"{self.filename}_{safe_title}.pdf")
-                new_doc.save(output_path)
+                new_doc.save(
+                    output_path,
+                    garbage=4,
+                    deflate=True,
+                    clean=True,
+                )
                 new_doc.close()
                 output_files.append(output_path)
 
@@ -184,9 +199,14 @@ class PDFSplitter:
                 for page_num in range(start_page, end_page):
                     new_doc.insert_pdf(self.doc, from_page=page_num, to_page=page_num)
 
-                # 保存文件
+                # 保存文件（使用优化选项减小文件大小）
                 output_path = os.path.join(output_dir, f"{self.filename}_keyword_{i+1}.pdf")
-                new_doc.save(output_path)
+                new_doc.save(
+                    output_path,
+                    garbage=4,
+                    deflate=True,
+                    clean=True,
+                )
                 new_doc.close()
                 output_files.append(output_path)
 
