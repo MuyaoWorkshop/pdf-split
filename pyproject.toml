@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pdf-split"
+version = "1.0.0"
+description = "A powerful PDF splitting CLI tool with multiple modes"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "muyao", email = "bytes.yao@gmail.com" }
+]
+keywords = ["pdf", "split", "cli", "pdf-processing", "document"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Utilities",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "PyMuPDF>=1.23.0",
+]
+
+# ⭐ 关键配置：定义 CLI 入口点
+[project.scripts]
+pdf-split = "pdf_splitter.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/your-username/pdf-split"
+Repository = "https://github.com/your-username/pdf-split"
+Issues = "https://github.com/your-username/pdf-split/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pdf_splitter"]
