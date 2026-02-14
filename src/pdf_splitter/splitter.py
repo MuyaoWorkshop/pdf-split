@@ -2,7 +2,7 @@
 PDF分割核心模块
 """
 
-import fitz  # PyMuPDF
+import pymupdf  # PyMuPDF
 import os
 from pathlib import Path
 from typing import List, Tuple
@@ -19,7 +19,7 @@ class PDFSplitter:
             input_pdf: 输入PDF文件路径
         """
         self.input_pdf = input_pdf
-        self.doc = fitz.open(input_pdf)
+        self.doc = pymupdf.open(input_pdf)
         self.filename = Path(input_pdf).stem
 
     def split_by_pages(self, pages_per_file: int, output_dir: str = "output") -> List[str]:
@@ -44,7 +44,7 @@ class PDFSplitter:
             end_page = min((i + 1) * pages_per_file, total_pages)
 
             # 创建新PDF
-            new_doc = fitz.open()
+            new_doc = pymupdf.open()
             for page_num in range(start_page, end_page):
                 new_doc.insert_pdf(self.doc, from_page=page_num, to_page=page_num)
 
@@ -84,22 +84,30 @@ class PDFSplitter:
             end_page = min(end, len(self.doc))
 
             # 创建新PDF
-            new_doc = fitz.open()
+            new_doc = pymupdf.open()
+            page_count = 0
             for page_num in range(start_page, end_page):
                 new_doc.insert_pdf(self.doc, from_page=page_num, to_page=page_num)
+                page_count += 1
 
-            # 保存文件（使用优化选项减小文件大小）
-            output_path = os.path.join(output_dir, f"{self.filename}_range_{start}-{end}.pdf")
-            new_doc.save(
-                output_path,
-                garbage=4,
-                deflate=True,
-                clean=True,
-            )
-            new_doc.close()
-            output_files.append(output_path)
+            # 只有当新PDF有页面时才保存
+            if page_count > 0:
+                # 保存文件（使用优化选项减小文件大小）
+                output_path = os.path.join(output_dir, f"{self.filename}_range_{start}-{end}.pdf")
+                new_doc.save(
+                    output_path,
+                    garbage=4,
+                    deflate=True,
+                    clean=True,
+                )
+                new_doc.close()
+                output_files.append(output_path)
 
-            print(f"✓ 已生成: {output_path} (第{start}-{end}页)")
+                print(f"✓ 已生成: {output_path} (第{start}-{end}页)")
+            else:
+                # 跳过空PDF并关闭文档
+                new_doc.close()
+                print(f"⚠️  跳过空范围: 第{start}-{end}页，无页面")
 
         self.doc.close()
         return output_files
@@ -132,32 +140,71 @@ class PDFSplitter:
         # 按书签分割
         for i in range(len(toc) - 1):
             level, title, start_page = toc[i]
-            next_level, next_title, end_page = toc[i + 1]
 
             # 只处理顶级书签（level=1）
             if level == 1:
+                # 找下一个level=1的书签作为结束点
+                end_page = None
+                for j in range(i + 1, len(toc)):
+                    if toc[j][0] == 1:  # level=1
+                        end_page = toc[j][2]
+                        break
+
+                # 如果没找到下一个level=1的书签，使用文档末尾
+                if end_page is None:
+                    end_page = len(self.doc) + 1  # +1因为要转换为0-based
+
                 # 创建新PDF
-                new_doc = fitz.open()
+                new_doc = pymupdf.open()
+                page_count = 0
+
+                # 转换为0-based索引并复制页面
                 for page_num in range(start_page - 1, end_page - 1):
                     if page_num < len(self.doc):
                         new_doc.insert_pdf(self.doc, from_page=page_num, to_page=page_num)
+                        page_count += 1
 
-                # 清理文件名
-                safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
-                safe_title = safe_title[:50] if safe_title else f"section_{i+1}"
+                # 收集并设置书签到新PDF
+                # 收集这个章节的书签（包括当前level=1和其子level=2的书签）
+                section_toc = [(level, title, 1)]  # 第1页开始
+                for j in range(i + 1, len(toc)):
+                    sub_level, sub_title, sub_page = toc[j]
+                    # 添加子章节直到下一个level=1的书签
+                    if sub_level == 1:
+                        break
+                    if sub_page < end_page:
+                        # 计算相对于新文档的页码
+                        relative_page = sub_page - start_page + 1
+                        section_toc.append((sub_level, sub_title, relative_page))
 
-                # 保存文件（使用优化选项减小文件大小）
-                output_path = os.path.join(output_dir, f"{self.filename}_{safe_title}.pdf")
-                new_doc.save(
-                    output_path,
-                    garbage=4,
-                    deflate=True,
-                    clean=True,
-                )
-                new_doc.close()
-                output_files.append(output_path)
+                # 设置书签到新PDF（只在有页面且有书签时）
+                if page_count > 0 and len(section_toc) > 1:
+                    new_doc.set_toc(section_toc)
 
-                print(f"✓ 已生成: {output_path} ({title}, 第{start_page}-{end_page-1}页)")
+                # 只有当新PDF有页面时才保存
+                if page_count > 0:
+                    # 清理文件名
+                    safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
+                    safe_title = safe_title[:50] if safe_title else f"section_{i+1}"
+
+                    # 保存文件（使用优化选项减小文件大小）
+                    output_path = os.path.join(output_dir, f"{self.filename}_{safe_title}.pdf")
+                    new_doc.save(
+                        output_path,
+                        garbage=4,
+                        deflate=True,
+                        clean=True,
+                    )
+                    new_doc.close()
+                    output_files.append(output_path)
+
+                    # 计算实际复制的最后一页（转换为1-based）
+                    last_page_copied = start_page + page_count - 1
+                    print(f"✓ 已生成: {output_path} ({title}, 第{start_page}-{last_page_copied}页)")
+                else:
+                    # 跳过空PDF并关闭文档
+                    new_doc.close()
+                    print(f"⚠️  跳过空书签: {title} (第{start_page}页)")
 
         self.doc.close()
         return output_files
@@ -195,7 +242,7 @@ class PDFSplitter:
 
             if end_page > start_page:
                 # 创建新PDF
-                new_doc = fitz.open()
+                new_doc = pymupdf.open()
                 for page_num in range(start_page, end_page):
                     new_doc.insert_pdf(self.doc, from_page=page_num, to_page=page_num)
 
